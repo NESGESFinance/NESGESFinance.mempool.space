@@ -1,0 +1,15 @@
+{
+  "name": "nesgesfinance-bitcoin-protocol-layer",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Bitcoin Core RPC, Ordinals, Runes, Taproot Assets and Lightning protocol workspace for NESGESFinance.",
+  "type": "module",
+  "scripts": {
+    "lint": "echo 'Bitcoin protocol lint placeholder OK'",
+    "test:bitcoin-rpc": "echo 'Bitcoin Core RPC adapter test placeholder OK'",
+    "test:ordinals": "echo 'Ordinals adapter test placeholder OK'",
+    "test:runes": "echo 'Runes adapter test placeholder OK'",
+    "test:taproot-assets": "echo 'Taproot Assets adapter test placeholder OK'",
+    "test:lightning": "echo 'Lightning adapter test placeholder OK'"
+  }
+}
