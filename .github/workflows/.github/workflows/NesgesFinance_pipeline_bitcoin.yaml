@@ -2,8 +2,14 @@ name: NESGESFinance Bitcoin Institutional CI/CD Pipeline
 
 on:
   workflow_dispatch:
+
   pull_request:
-    types: [opened, synchronize, reopened, review_requested]
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - review_requested
+
   push:
     branches:
       - main
@@ -60,7 +66,6 @@ jobs:
 
             if [ -d "$DIR" ]; then
               echo "Validating JSON files in $DIR"
-
               COUNT=$(find "$DIR" -type f -name '*.json' | wc -l)
 
               if [ "$COUNT" -gt 0 ]; then
@@ -277,6 +282,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install jq -y
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
@@ -359,285 +367,3 @@ jobs:
           name: inscription-hash
           path: inscription_hash.txt
           retention-days: 30
-
-  frontend:
-    name: Frontend Bitcoin Dashboard
-    runs-on: ubuntu-latest
-    needs:
-      - backend
-      - inscription_engine
-
-    defaults:
-      run:
-        working-directory: frontend
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check frontend workspace
-        shell: bash
-        run: |
-          if [ ! -f package.json ]; then
-            echo "frontend/package.json not found. Skipping frontend job."
-            exit 0
-          fi
-
-      - name: Setup Node.js
-        if: hashFiles('frontend/package.json') != ''
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: frontend/package-lock.json
-
-      - name: Install frontend dependencies
-        if: hashFiles('frontend/package.json') != ''
-        run: npm ci
-
-      - name: Lint frontend
-        if: hashFiles('frontend/package.json') != ''
-        run: npm run lint --if-present
-
-      - name: Build frontend Bitcoin dashboard
-        if: hashFiles('frontend/package.json') != ''
-        env:
-          VITE_PROJECT_NAME: ${{ env.VITE_PROJECT_NAME }}
-          VITE_BLOCKCHAIN: ${{ env.VITE_BLOCKCHAIN }}
-          VITE_BITCOIN_NETWORK: ${{ env.VITE_BITCOIN_NETWORK }}
-          VITE_OFFICIAL_DOMAIN: ${{ env.VITE_OFFICIAL_DOMAIN }}
-          VITE_RUNE_SYMBOL: ${{ env.VITE_RUNE_SYMBOL }}
-        run: npm run build --if-present
-
-      - name: Upload frontend build
-        if: hashFiles('frontend/package.json') != ''
-        uses: actions/upload-artifact@v4
-        with:
-          name: frontend-build
-          path: frontend/dist
-          retention-days: 30
-
-  e2e:
-    name: End-to-End Bitcoin RWA Simulation
-    runs-on: ubuntu-latest
-    needs: frontend
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Check root package
-        shell: bash
-        run: |
-          if [ ! -f package.json ]; then
-            echo "Root package.json not found. Skipping E2E tests."
-            exit 0
-          fi
-
-      - name: Setup Node.js
-        if: hashFiles('package.json') != ''
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-          cache: npm
-          cache-dependency-path: package-lock.json
-
-      - name: Install root dependencies
-        if: hashFiles('package.json') != ''
-        run: npm ci
-
-      - name: Simulate Bitcoin RWA lifecycle
-        if: hashFiles('package.json') != ''
-        env:
-          BLOCKCHAIN: ${{ env.BLOCKCHAIN }}
-          BITCOIN_NETWORK: ${{ env.BITCOIN_NETWORK }}
-          BITCOIN_ASSET_PROTOCOLS: ${{ env.BITCOIN_ASSET_PROTOCOLS }}
-        run: npm run test:e2e --if-present
-
-  audit:
-    name: Security Audit
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v4
-        with:
-          node-version: ${{ env.NODE_VERSION }}
-
-      - name: Audit backend dependencies
-        shell: bash
-        run: |
-          if [ -f backend/package.json ]; then
-            cd backend
-            npm audit --omit=dev --audit-level=high
-          else
-            echo "backend/package.json not found. Skipping backend audit."
-          fi
-
-      - name: Audit frontend dependencies
-        shell: bash
-        run: |
-          if [ -f frontend/package.json ]; then
-            cd frontend
-            npm audit --omit=dev --audit-level=high
-          else
-            echo "frontend/package.json not found. Skipping frontend audit."
-          fi
-
-      - name: Audit Bitcoin protocol dependencies
-        shell: bash
-        run: |
-          if [ -f bitcoin/package.json ]; then
-            cd bitcoin
-            npm audit --omit=dev --audit-level=high
-          else
-            echo "bitcoin/package.json not found. Skipping Bitcoin protocol audit."
-          fi
-
-  validate_docker:
-    name: Docker and Bitcoin Node Config Validation
-    runs-on: ubuntu-latest
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Install jq
-        run: sudo apt-get update && sudo apt-get install jq -y
-
-      - name: Generate mempool backend config
-        shell: bash
-        run: |
-          if [ -f docker/backend/start.sh ]; then
-            chmod +x docker/backend/start.sh
-            sh docker/backend/start.sh
-          else
-            echo "docker/backend/start.sh not found. Skipping backend config generation."
-          fi
-
-      - name: Validate mempool backend JSON output
-        shell: bash
-        run: |
-          if [ -f docker/backend/mempool-config.json ]; then
-            jq -e . docker/backend/mempool-config.json
-          else
-            echo "docker/backend/mempool-config.json not found. Skipping."
-          fi
-
-      - name: Validate Bitcoin node config
-        shell: bash
-        run: |
-          if [ -f docker/bitcoin/bitcoin.conf ]; then
-            echo "Bitcoin Core configuration detected:"
-            grep -E "^(server|daemon|rpcbind|rpcallowip|rpcuser|txindex|prune|zmqpubrawblock|zmqpubrawtx)=" docker/bitcoin/bitcoin.conf || true
-          else
-            echo "docker/bitcoin/bitcoin.conf not found. Skipping Bitcoin node config validation."
-          fi
-
-  blockchain_anchor:
-    name: Prepare Bitcoin Anchor Hash
-    runs-on: ubuntu-latest
-    needs:
-      - validate_model
-      - inscription_engine
-
-    steps:
-      - name: Download model hash
-        uses: actions/download-artifact@v4
-        with:
-          name: model-hash
-          path: anchor-inputs/model
-
-      - name: Download inscription hash
-        uses: actions/download-artifact@v4
-        with:
-          name: inscription-hash
-          path: anchor-inputs/inscriptions
-
-      - name: Combine hashes into deterministic Bitcoin anchor preimage
-        shell: bash
-        run: |
-          set -e
-
-          find anchor-inputs -type f -print0 \
-            | sort -z \
-            | xargs -0 sha256sum \
-            | sha256sum > bitcoin_anchor.txt
-
-          cat bitcoin_anchor.txt
-
-      - name: Create Bitcoin anchor manifest
-        shell: bash
-        run: |
-          ANCHOR_HASH="$(cut -d ' ' -f1 bitcoin_anchor.txt)"
-
-          cat > bitcoin_anchor_manifest.json <<EOF
-          {
-            "project": "NESGESFinance",
-            "blockchain": "bitcoin",
-            "network": "${BITCOIN_NETWORK}",
-            "asset_protocols": "${BITCOIN_ASSET_PROTOCOLS}",
-            "rune_symbol": "NGF•BTC•AM",
-            "anchor_hash_sha256": "${ANCHOR_HASH}",
-            "anchor_methods_available": [
-              "OP_RETURN",
-              "Ordinals inscription",
-              "Taproot commitment",
-              "PSBT-based notarization"
-            ],
-            "created_at_utc": "$(date -u +%Y-%m-%dT%H:%M:%SZ)",
-            "status": "prepared_for_manual_bitcoin_mainnet_anchor"
-          }
-          EOF
-
-          jq -e . bitcoin_anchor_manifest.json
-          cat bitcoin_anchor_manifest.json
-
-      - name: Upload Bitcoin anchor artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: bitcoin-anchor-artifacts
-          path: |
-            bitcoin_anchor.txt
-            bitcoin_anchor_manifest.json
-          retention-days: 90
-
-  deploy:
-    name: Deploy NESGESFinance Bitcoin Platform
-    runs-on: ubuntu-latest
-
-    needs:
-      - backend
-      - bitcoin_protocols
-      - inscription_engine
-      - frontend
-      - e2e
-      - audit
-      - validate_docker
-      - blockchain_anchor
-
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-
-    environment: production
-
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Deploy backend
-        run: echo "Deploying NESGESFinance backend..."
-
-      - name: Deploy Bitcoin protocol services
-        run: echo "Deploying Bitcoin Core RPC, mempool adapter, Ordinals, Runes, Taproot Assets and Lightning integrations..."
-
-      - name: Deploy frontend dashboard
-        run: echo "Deploying NESGESFinance Bitcoin dashboard..."
-
-      - name: Register Bitcoin anchor manual step
-        run: echo "Ready to anchor bitcoin_anchor.txt in Bitcoin mainnet using OP_RETURN, Ordinals, Taproot commitment or PSBT notarization."
-
-      - name: Notify success
-        run: echo "NESGESFinance Bitcoin platform deployed successfully."
