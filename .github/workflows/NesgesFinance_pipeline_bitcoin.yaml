@@ -1,0 +1,369 @@
+name: NESGESFinance Bitcoin Institutional CI/CD Pipeline
+
+on:
+  workflow_dispatch:
+
+  pull_request:
+    types:
+      - opened
+      - synchronize
+      - reopened
+      - review_requested
+
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: read
+  actions: read
+  security-events: write
+
+concurrency:
+  group: nesgesfinance-bitcoin-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+  APP_ENV: "production"
+
+  PROJECT_NAME: "NESGESFinance"
+  BLOCKCHAIN: "bitcoin"
+  BITCOIN_NETWORK: "mainnet"
+
+  BITCOIN_ASSET_PROTOCOLS: "ordinals,runes,taproot-assets,lightning"
+  BITCOIN_RPC_ENABLED: "true"
+  ORDINALS_ENABLED: "true"
+  RUNES_ENABLED: "true"
+  TAPROOT_ASSETS_ENABLED: "true"
+  LIGHTNING_ENABLED: "true"
+
+  VITE_PROJECT_NAME: "NESGESFinance"
+  VITE_BLOCKCHAIN: "bitcoin"
+  VITE_BITCOIN_NETWORK: "mainnet"
+  VITE_OFFICIAL_DOMAIN: "https://nesgesfinance.org"
+  VITE_RUNE_SYMBOL: "NGF•BTC•AM"
+
+jobs:
+  validate_model:
+    name: Validate Canonical Bitcoin Data Model
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install jq -y
+
+      - name: Validate JSON model directories
+        shell: bash
+        run: |
+          set -e
+
+          validate_dir() {
+            DIR="$1"
+
+            if [ -d "$DIR" ]; then
+              echo "Validating JSON files in $DIR"
+              COUNT=$(find "$DIR" -type f -name '*.json' | wc -l)
+
+              if [ "$COUNT" -gt 0 ]; then
+                find "$DIR" -type f -name '*.json' -print0 | xargs -0 -n1 jq -e .
+              else
+                echo "No JSON files found in $DIR"
+              fi
+            else
+              echo "Directory $DIR not found. Skipping."
+            fi
+          }
+
+          validate_dir model
+          validate_dir model/core
+          validate_dir model/rwa
+          validate_dir model/bitcoin
+          validate_dir model/ordinals
+          validate_dir model/runes
+          validate_dir model/taproot-assets
+          validate_dir model/lightning
+          validate_dir model/financial
+          validate_dir model/legal
+          validate_dir model/metadata
+          validate_dir model/inscriptions
+
+      - name: Generate deterministic model hash
+        shell: bash
+        run: |
+          set -e
+
+          if [ -d model ]; then
+            find model -type f -name '*.json' -print0 \
+              | sort -z \
+              | xargs -0 sha256sum \
+              | sha256sum > model_hash.txt
+          else
+            echo "model directory not found" > model_hash.txt
+          fi
+
+          cat model_hash.txt
+
+      - name: Upload model hash
+        uses: actions/upload-artifact@v4
+        with:
+          name: model-hash
+          path: model_hash.txt
+          retention-days: 30
+
+  backend:
+    name: Backend Bitcoin Engine
+    runs-on: ubuntu-latest
+    needs: validate_model
+
+    defaults:
+      run:
+        working-directory: backend
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check backend workspace
+        shell: bash
+        run: |
+          if [ ! -f package.json ]; then
+            echo "backend/package.json not found. Skipping backend job."
+            exit 0
+          fi
+
+      - name: Setup Node.js
+        if: hashFiles('backend/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: Install backend dependencies
+        if: hashFiles('backend/package.json') != ''
+        run: npm ci
+
+      - name: Lint backend
+        if: hashFiles('backend/package.json') != ''
+        run: npm run lint --if-present
+
+      - name: Run backend tests
+        if: hashFiles('backend/package.json') != ''
+        run: npm run test --if-present
+
+      - name: Validate financial engine
+        if: hashFiles('backend/package.json') != ''
+        run: npm run test:finance --if-present
+
+      - name: Validate Bitcoin adapters
+        if: hashFiles('backend/package.json') != ''
+        run: |
+          npm run test:bitcoin --if-present
+          npm run test:bitcoin-rpc --if-present
+          npm run test:ordinals --if-present
+          npm run test:runes --if-present
+          npm run test:taproot-assets --if-present
+          npm run test:lightning --if-present
+
+      - name: Build backend
+        if: hashFiles('backend/package.json') != ''
+        run: npm run build --if-present
+
+  bitcoin_protocols:
+    name: Bitcoin Protocol Layer
+    runs-on: ubuntu-latest
+    needs: validate_model
+
+    defaults:
+      run:
+        working-directory: bitcoin
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Check Bitcoin workspace
+        shell: bash
+        run: |
+          if [ ! -f package.json ]; then
+            echo "bitcoin/package.json not found. Create this workspace for Bitcoin Core RPC, Ordinals, Runes, Taproot Assets and Lightning adapters."
+            exit 0
+          fi
+
+      - name: Setup Node.js
+        if: hashFiles('bitcoin/package.json') != ''
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: bitcoin/package-lock.json
+
+      - name: Install Bitcoin protocol dependencies
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm ci
+
+      - name: Lint Bitcoin protocol layer
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run lint --if-present
+
+      - name: Test Bitcoin Core RPC adapter
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run test:bitcoin-rpc --if-present
+
+      - name: Test Ordinals adapter
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run test:ordinals --if-present
+
+      - name: Test Runes adapter
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run test:runes --if-present
+
+      - name: Test Taproot Assets adapter
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run test:taproot-assets --if-present
+
+      - name: Test Lightning adapter
+        if: hashFiles('bitcoin/package.json') != ''
+        run: npm run test:lightning --if-present
+
+  rwa_validation:
+    name: Bitcoin RWA Validation
+    runs-on: ubuntu-latest
+    needs: validate_model
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Validate RWA metadata logic
+        shell: bash
+        run: |
+          if [ -f scripts/validateRWA.js ]; then
+            node scripts/validateRWA.js
+          else
+            echo "scripts/validateRWA.js not found. Skipping."
+          fi
+
+      - name: Cross-check Ordinals, Runes and RWA relations
+        shell: bash
+        run: |
+          if [ -f scripts/validateRelations.js ]; then
+            node scripts/validateRelations.js
+          else
+            echo "scripts/validateRelations.js not found. Skipping."
+          fi
+
+      - name: Validate Bitcoin ownership recognition rules
+        shell: bash
+        run: |
+          if [ -f scripts/validateBitcoinOwnership.js ]; then
+            node scripts/validateBitcoinOwnership.js
+          else
+            echo "scripts/validateBitcoinOwnership.js not found. Skipping."
+          fi
+
+  inscription_engine:
+    name: Ordinals and Runes Metadata Engine
+    runs-on: ubuntu-latest
+    needs:
+      - validate_model
+      - rwa_validation
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Install jq
+        run: sudo apt-get update && sudo apt-get install jq -y
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: Generate Ordinals inscription metadata
+        shell: bash
+        run: |
+          if [ -f scripts/generateInscriptions.js ]; then
+            node scripts/generateInscriptions.js
+          elif [ -f scripts/generateNFTs.js ]; then
+            node scripts/generateNFTs.js
+          else
+            echo "No inscription generator found. Skipping."
+          fi
+
+      - name: Generate Runes metadata
+        shell: bash
+        run: |
+          if [ -f scripts/generateRunesMetadata.js ]; then
+            node scripts/generateRunesMetadata.js
+          else
+            echo "scripts/generateRunesMetadata.js not found. Skipping."
+          fi
+
+      - name: Validate generated metadata JSON
+        shell: bash
+        run: |
+          set -e
+
+          validate_generated_dir() {
+            DIR="$1"
+
+            if [ -d "$DIR" ]; then
+              COUNT=$(find "$DIR" -type f -name '*.json' | wc -l)
+
+              if [ "$COUNT" -gt 0 ]; then
+                find "$DIR" -type f -name '*.json' -print0 | xargs -0 -n1 jq -e .
+              else
+                echo "No JSON files found in $DIR"
+              fi
+            else
+              echo "$DIR not found. Skipping."
+            fi
+          }
+
+          validate_generated_dir metadata
+          validate_generated_dir inscriptions
+          validate_generated_dir runes
+
+      - name: Generate deterministic inscription hash
+        shell: bash
+        run: |
+          set -e
+
+          mkdir -p hash-inputs
+
+          if [ -d metadata ]; then
+            find metadata -type f -name '*.json' -print0 | sort -z | xargs -0 sha256sum > hash-inputs/metadata.sha256 || true
+          fi
+
+          if [ -d inscriptions ]; then
+            find inscriptions -type f -name '*.json' -print0 | sort -z | xargs -0 sha256sum > hash-inputs/inscriptions.sha256 || true
+          fi
+
+          if [ -d runes ]; then
+            find runes -type f -name '*.json' -print0 | sort -z | xargs -0 sha256sum > hash-inputs/runes.sha256 || true
+          fi
+
+          find hash-inputs -type f -print0 \
+            | sort -z \
+            | xargs -0 sha256sum \
+            | sha256sum > inscription_hash.txt
+
+          cat inscription_hash.txt
+
+      - name: Upload inscription hash
+        uses: actions/upload-artifact@v4
+        with:
+          name: inscription-hash
+          path: inscription_hash.txt
+          retention-days: 30
