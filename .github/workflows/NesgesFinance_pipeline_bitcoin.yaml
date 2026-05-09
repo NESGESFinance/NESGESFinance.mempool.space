@@ -12,7 +12,10 @@ on:
 
   push:
     branches:
-      - main
+      - mainpush:
+  branches:
+    - main
+    - nesgesfinance-master
 
 permissions:
   contents: read
