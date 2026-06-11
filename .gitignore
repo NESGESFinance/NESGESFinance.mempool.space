@@ -7,3 +7,13 @@ frontend/src/resources/config.template.js
 frontend/src/resources/config.js
 target
 docker/backend/start_ci.sh
+# NESGES local/private runtime
+nesges-local-api/node_modules/
+nesges-local-api/.env
+nesges-local-api/.evm
+
+# Accidental nested repositories / temp folders
+0c9ea2f32308508f3e13e025815bb620/
+
+# Ignore full local API until reviewed
+nesges-local-api/
