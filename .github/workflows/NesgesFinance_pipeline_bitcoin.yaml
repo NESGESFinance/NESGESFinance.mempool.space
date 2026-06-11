@@ -142,7 +142,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: backend/package-lock.json
 
       - name: Install backend dependencies
         if: hashFiles('backend/package.json') != ''
@@ -201,7 +200,6 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
           cache: npm
-          cache-dependency-path: bitcoin/package-lock.json
 
       - name: Install Bitcoin protocol dependencies
         if: hashFiles('bitcoin/package.json') != ''
