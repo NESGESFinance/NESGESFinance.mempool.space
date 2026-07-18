@@ -231,7 +231,7 @@ const defaults: IConfig = {
   },
   'ELECTRUM': {
     'HOST': '127.0.0.1',
-    'PORT': 3306,
+    'PORT': 50002,
     'TLS_ENABLED': true,
   },
   'CORE_RPC': {

@@ -17,8 +17,8 @@ Jump to a section in this doc:
 Get the latest Mempool code:
 
 ```
-git clone https://github.com/mempool/mempool
-cd mempool
+git clone https://github.com/NESGESFinance/NESGESFinance.mempool.space
+cd NESGESFinance.mempool.space
 ```
 
 Check out the latest release:
