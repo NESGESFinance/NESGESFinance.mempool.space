@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize]
   push:
     branches:
-      - master
+      - nesgesfinance-master
 
 permissions:
   contents: read
