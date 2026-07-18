@@ -13,8 +13,8 @@
 
 ### 2.1 Stack Tecnológico Principal
 
-- **Backend:** Node.js 16+ con TypeScript 5.7.3
-- **Frontend:** Angular 20.3.18 con TypeScript
+- **Backend:** Node.js 16+ con TypeScript 4.9.3
+- **Frontend:** Angular 20.3.25 con TypeScript
 - **Módulo de Alto Rendimiento:** Rust (algoritmo getBlockTemplate)
 - **Base de Datos:** MariaDB 10.5.21
 - **Caché:** Redis + Disk Cache + Memory Cache
@@ -25,14 +25,14 @@
 
 1. **Capa de Presentación (Frontend):**
    - Angular SPA con Server-Side Rendering (SSR)
-   - 737 archivos TypeScript
-   - 137+ componentes Angular
+   - Múltiples archivos TypeScript con componentes modulares
+   - Componentes Angular para visualización interactiva
    - Soporte multi-idioma (i18n)
 
 2. **Capa de Lógica de Negocio (Backend):**
    - API RESTful con Express.js
    - WebSocket para actualizaciones en tiempo real
-   - 131 archivos TypeScript
+   - Arquitectura modular en TypeScript
    - Modo cluster para múltiples procesos
 
 3. **Capa de Datos:**
@@ -55,11 +55,11 @@
 │   │   ├── liquid/              # APIs de Liquid Sidechain
 │   │   ├── mining/              # Estadísticas de minería
 │   │   ├── explorer/            # Explorador de blockchain
-│   │   ├── accelerations/       # Servicio de aceleración de transacciones
-│   │   └── clustering/          # Clustering de transacciones
+│   │   ├── acceleration/        # Servicio de aceleración de transacciones
+│   │   └── websocket-handler.ts # Manejador WebSocket
 │   ├── repositories/            # Capa de acceso a datos
 │   ├── tasks/                   # Tareas programadas y background
-│   └── websocket/               # Manejador WebSocket
+│   └── cluster-mempool/         # Clustering de transacciones
 ├── package.json                 # Dependencias y scripts
 └── Dockerfile                   # Imagen Docker para backend
 ```
@@ -67,22 +67,23 @@
 ### 3.2 Dependencias Principales del Backend
 
 **Frameworks y Servidores:**
-- `express` (4.21.3): Framework HTTP
-- `ws` (8.19.0): WebSocket server
-- `compression` (1.7.5): Compresión de respuestas HTTP
+- `express` (4.22+): Framework HTTP
+- `ws` (8.21+): WebSocket server
+- `compression`: Compresión de respuestas HTTP
 
 **Base de Datos y Caché:**
-- `mysql2` (3.12.0): Cliente MySQL/MariaDB
-- `socks-proxy-agent` (8.0.4): Proxy SOCKS para Tor
+- `mysql2` (3.20+): Cliente MySQL/MariaDB
+- `socks-proxy-agent`: Proxy SOCKS para Tor
 
 **Bitcoin y Blockchain:**
-- `bitcoinjs-lib` (7.0.1): Biblioteca Bitcoin JavaScript
-- `@mempool/electrum-client` (1.2.1): Cliente Electrum
-- `rust-gbt` (0.5.2): Módulo Rust para getBlockTemplate
+- `bitcoinjs-lib`: Biblioteca Bitcoin JavaScript
+- `@mempool/electrum-client`: Cliente Electrum
+- `rust-gbt`: Módulo Rust para getBlockTemplate
 
 **Utilidades:**
-- `express-rate-limit` (7.6.0): Limitación de tasa
-- `maxmind` (4.3.23): Geolocalización IP
+- `express-rate-limit`: Limitación de tasa
+- `maxmind`: Geolocalización IP
+- `axios` (1.16+): Cliente HTTP
 
 ### 3.3 Archivos Clave del Backend
 
@@ -110,7 +111,7 @@ Contiene todos los controladores de API:
 - **liquid/**: Assets, pegs Liquid
 - **mining/**: Hashrate, dificultad, pools, recompensas
 - **explorer/**: Búsqueda, direcciones, UTXOs
-- **accelerations/**: Servicio de aceleración de transacciones
+- **acceleration/**: Servicio de aceleración de transacciones
 
 ### 3.4 Scripts del Backend
 
