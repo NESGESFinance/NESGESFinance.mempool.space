@@ -164,7 +164,7 @@ class Server {
 
     await poolsUpdater.updatePoolsJson(); // Needs to be done before loading the disk cache because we sometimes wipe it
     if (config.DATABASE.ENABLED === true && config.MEMPOOL.ENABLED && ['mainnet', 'testnet', 'signet', 'testnet4', 'regtest'].includes(config.MEMPOOL.NETWORK) && !poolsUpdater.currentSha) {
-      logger.err(`Failed to retreive pools-v2.json sha, cannot run block indexing. Please make sure you've set valid urls in your mempool-config.json::MEMPOOL::POOLS_JSON_URL and mempool-config.json::MEMPOOL::POOLS_JSON_TREE_UR, aborting now`);
+      logger.err(`Failed to retrieve pools-v2.json sha, cannot run block indexing. Please make sure you've set valid urls in your mempool-config.json::MEMPOOL::POOLS_JSON_URL and mempool-config.json::MEMPOOL::POOLS_JSON_TREE_UR, aborting now`);
       return process.exit(1);
     }
 
@@ -177,8 +177,14 @@ class Server {
       if (config.MEMPOOL.CACHE_ENABLED) {
         await diskCache.$loadMempoolCache();
       } else if (config.REDIS.ENABLED) {
+        let currentMempoolTxids: Set<string> | undefined;
+        try {
+          currentMempoolTxids = new Set(await bitcoinApi.$getRawMempool());
+        } catch (e) {
+          logger.warn(`Failed to fetch raw mempool before loading Redis cache. Reason: ${e instanceof Error ? e.message : e}`);
+        }
         /** @asyncUnsafe */
-        await redisCache.$loadCache();
+        await redisCache.$loadCache(currentMempoolTxids);
       }
     }
 
@@ -224,6 +230,8 @@ class Server {
         logger.notice(`Mempool Server is running on port ${config.MEMPOOL.HTTP_PORT}`);
       }
     });
+    this.server.keepAliveTimeout = 70 * 1000;
+    this.server.headersTimeout = 71 * 1000;
 
     if (this.serverUnixSocket) {
       this.serverUnixSocket.listen(config.MEMPOOL.UNIX_SOCKET_PATH, () => {
@@ -233,6 +241,9 @@ class Server {
           logger.notice(`Mempool Server is listening on ${config.MEMPOOL.UNIX_SOCKET_PATH}`);
         }
       });
+
+      this.serverUnixSocket.keepAliveTimeout = 70 * 1000;
+      this.serverUnixSocket.headersTimeout = 71 * 1000;
     }
 
     void poolsUpdater.$startService();
@@ -394,6 +405,16 @@ class Server {
       this.warnedHeapCritical = false;
       this.maxHeapSize = 0;
       this.lastHeapLogTime = now;
+      this.server?.getConnections((error, count) => {
+        if (!error) {
+          logger.debug(`${count} open TCP sockets`);
+        }
+      });
+      this.serverUnixSocket?.getConnections((error, count) => {
+        if (!error) {
+          logger.debug(`${count} open unix sockets`);
+        }
+      });
     }
   }
 
