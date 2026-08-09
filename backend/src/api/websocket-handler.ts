@@ -371,8 +371,8 @@ class WebsocketHandler {
           }
 
           if (parsedMessage && parsedMessage['track-mempool-block'] !== undefined) {
-            if (Number.isInteger(parsedMessage['track-mempool-block']) && parsedMessage['track-mempool-block'] >= 0) {
-              const index = parsedMessage['track-mempool-block'];
+            const index = parsedMessage['track-mempool-block'];
+            if (Number.isInteger(index) && index >= 0 && index < config.MEMPOOL.MEMPOOL_BLOCKS_AMOUNT) {
               client['track-mempool-block'] = index;
               const mBlocksWithTransactions = mempoolBlocks.getMempoolBlocksWithTransactions();
               response['projected-block-transactions'] = JSON.stringify({
@@ -446,11 +446,11 @@ class WebsocketHandler {
             delete client['track-mempool'];
           }
 
-          if (parsedMessage && parsedMessage['track-stratum'] != null) {
+          if (parsedMessage && parsedMessage['track-stratum'] !== undefined) {
             if (parsedMessage['track-stratum'] === 'all' || typeof parsedMessage['track-stratum'] === 'number') {
               const sub = parsedMessage['track-stratum'];
               client['track-stratum'] = sub;
-              response['stratumJobs'] = this.socketData['stratumJobs'];
+              response['stratumJobs'] = JSON.stringify(stratumApi.getJobs());
             } else {
               client['track-stratum'] = false;
             }
@@ -1369,8 +1369,6 @@ class WebsocketHandler {
   }
 
   public handleNewStratumJob(job: StratumJob): void {
-    this.updateSocketDataFields({ 'stratumJobs': stratumApi.getJobs() });
-
     for (const server of this.webSocketServers) {
       server.clients.forEach((client) => {
         if (client.readyState !== WebSocket.OPEN) {
