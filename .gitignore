@@ -17,3 +17,6 @@ nesges-local-api/.evm
 
 # Ignore full local API until reviewed
 nesges-local-api/
+
+# Docker credentials - never commit
+docker/.env

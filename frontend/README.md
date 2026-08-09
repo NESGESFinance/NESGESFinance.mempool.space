@@ -16,8 +16,8 @@ If you want to quickly improve the UI, fix typos, or make other updates that don
 Get the latest Mempool code:
 
 ```
-git clone https://github.com/mempool/mempool
-cd mempool/frontend
+git clone https://github.com/NESGESFinance/NESGESFinance.mempool.space
+cd NESGESFinance.mempool.space/frontend
 ```
 
 ### 2. Specify Website
@@ -121,7 +121,7 @@ https://www.transifex.com/mempool/mempool/dashboard/
 * Japanese @wiz @japananon
 * Norwegian @T82771355
 * Polish @maciejsoltysiak
-* Portugese @jgcastro1985
+* Portuguese @jgcastro1985
 * Slovenian @thepkbadger
 * Finnish @bio_bitcoin
 * Swedish @softsimon_

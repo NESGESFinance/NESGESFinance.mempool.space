@@ -5,7 +5,7 @@ on:
     types: [opened, synchronize]
   push:
     branches:
-      - master
+      - nesgesfinance-master
 
 permissions:
   contents: read
@@ -46,7 +46,7 @@ jobs:
 
       - name: Read rust-toolchain file from repository
         id: gettoolchain
-        run: echo "::set-output name=toolchain::$(cat ./rust/gbt/rust-toolchain)"
+        run: echo "toolchain=$(cat ./rust/gbt/rust-toolchain)" >> $GITHUB_OUTPUT
         working-directory: ${{ matrix.node }}/integration
 
       - name: Cache Rust dependencies

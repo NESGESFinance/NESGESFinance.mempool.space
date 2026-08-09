@@ -23,13 +23,13 @@ services:
       MEMPOOL_BACKEND: "none"
       CORE_RPC_HOST: "172.27.0.1"
       CORE_RPC_PORT: "8332"
-      CORE_RPC_USERNAME: "mempool"
-      CORE_RPC_PASSWORD: "mempool"
+      CORE_RPC_USERNAME: "${CORE_RPC_USERNAME:-mempool}"
+      CORE_RPC_PASSWORD: "${CORE_RPC_PASSWORD:-mempool}"
       DATABASE_ENABLED: "true"
       DATABASE_HOST: "db"
-      DATABASE_DATABASE: "mempool"
-      DATABASE_USERNAME: "mempool"
-      DATABASE_PASSWORD: "mempool"
+      DATABASE_DATABASE: "${DATABASE_NAME:-mempool}"
+      DATABASE_USERNAME: "${DATABASE_USERNAME:-mempool}"
+      DATABASE_PASSWORD: "${DATABASE_PASSWORD:-mempool}"
       STATISTICS_ENABLED: "true"
     image: mempool/backend:latest
     user: "1000:1000"
@@ -46,10 +46,10 @@ services:
       start_period: 40s
   db:
     environment:
-      MYSQL_DATABASE: "mempool"
-      MYSQL_USER: "mempool"
-      MYSQL_PASSWORD: "mempool"
-      MYSQL_ROOT_PASSWORD: "admin"
+      MYSQL_DATABASE: "${DATABASE_NAME:-mempool}"
+      MYSQL_USER: "${DATABASE_USERNAME:-mempool}"
+      MYSQL_PASSWORD: "${DATABASE_PASSWORD:-mempool}"
+      MYSQL_ROOT_PASSWORD: "${MYSQL_ROOT_PASSWORD:-admin}"
       MARIADB_AUTO_UPGRADE: "1"
     image: mariadb:10.5.21
     user: "1000:1000"
